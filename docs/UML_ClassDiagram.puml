@@ -1,0 +1,176 @@
+@startuml DeliverySystem_ClassDiagram
+
+title Delivery Management System - Class Diagram (Laborator 1)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+
+package "Domain Layer" {
+    
+    abstract class EntityBase {
+        # Id: Guid
+        --
+        + EntityBase()
+        + EntityBase(id: Guid)
+        + Equals(obj: object?): bool
+        + GetHashCode(): int
+    }
+    
+    class Customer {
+        - Name: string
+        - Email: string
+        - Phone: string
+        - Address: Address
+        --
+        + Customer(name, email, phone, address)
+        + SetName(name: string): void
+        + SetEmail(email: string): void
+        + SetPhone(phone: string): void
+        + SetAddress(address: Address): void
+    }
+    
+    class Order {
+        - _items: List<OrderItem>
+        - CustomerId: Guid
+        - Status: OrderStatus
+        - CreatedAt: DateTime
+        - UpdatedAt: DateTime?
+        --
+        + Order(customerId: Guid)
+        + AddItem(item: OrderItem): void
+        + RemoveItem(item: OrderItem): void
+        + UpdateStatus(newStatus: OrderStatus): void
+        + GetTotalPrice(): decimal
+        + GetTotalWeight(): decimal
+    }
+    
+    class OrderItem {
+        + ProductName: string
+        + Quantity: int
+        + UnitPrice: decimal
+        + Weight: decimal
+        --
+        + OrderItem(productName, quantity, unitPrice, weight)
+        + GetTotalPrice(): decimal
+        + GetTotalWeight(): decimal
+    }
+    
+    abstract class Courier {
+        - Name: string
+        - Phone: string
+        - IsAvailable: bool
+        --
+        + {abstract} VehicleType: VehicleType
+        + {abstract} MaxWeight: decimal
+        + {abstract} CalculateDeliveryTime(distanceKm: decimal): TimeSpan
+        + SetAvailable(): void
+        + SetUnavailable(): void
+        + CanCarry(weight: decimal): bool
+    }
+    
+    class BikeCourier {
+        + VehicleType: VehicleType
+        + MaxWeight: decimal = 5.0
+        --
+        + BikeCourier(name, phone)
+        + CalculateDeliveryTime(distanceKm: decimal): TimeSpan
+    }
+    
+    class CarCourier {
+        - LicensePlate: string
+        + VehicleType: VehicleType
+        + MaxWeight: decimal = 50.0
+        --
+        + CarCourier(name, phone, licensePlate)
+        + CalculateDeliveryTime(distanceKm: decimal): TimeSpan
+        + SetLicensePlate(licensePlate: string): void
+    }
+    
+    class Delivery {
+        - OrderId: Guid
+        - CourierId: Guid
+        - Status: DeliveryStatus
+        - AssignedAt: DateTime
+        - PickedUpAt: DateTime?
+        - DeliveredAt: DateTime?
+        - DistanceKm: decimal
+        - EstimatedDeliveryTime: TimeSpan?
+        --
+        + Delivery(orderId, courierId, distanceKm)
+        + MarkAsAssigned(): void
+        + MarkAsPickedUp(): void
+        + MarkAsInTransit(): void
+        + MarkAsDelivered(): void
+        + MarkAsFailed(): void
+    }
+    
+    class Address <<ValueObject>> {
+        + Street: string
+        + City: string
+        + PostalCode: string
+        + Country: string
+        --
+        + Address(street, city, postalCode, country)
+        + GetFullAddress(): string
+    }
+    
+    enum OrderStatus {
+        Created
+        Confirmed
+        Processing
+        ReadyForDelivery
+        InDelivery
+        Delivered
+        Cancelled
+    }
+    
+    enum DeliveryStatus {
+        Pending
+        Assigned
+        PickedUp
+        InTransit
+        Delivered
+        Failed
+    }
+    
+    enum VehicleType {
+        Bicycle
+        Car
+    }
+}
+
+' Inheritance relationships
+EntityBase <|-- Customer
+EntityBase <|-- Order
+EntityBase <|-- Courier
+EntityBase <|-- Delivery
+Courier <|-- BikeCourier
+Courier <|-- CarCourier
+
+' Composition/Association relationships
+Customer *-- Address : has
+Order *-- OrderItem : contains
+Order --> Customer : belongs to
+Order --> OrderStatus : has
+Delivery --> Order : for
+Delivery --> Courier : assigned to
+Delivery --> DeliveryStatus : has
+Courier --> VehicleType : has
+
+note right of Courier
+  **Abstract class**
+  Demonstrates inheritance
+  and polymorphism
+end note
+
+note right of BikeCourier
+  MaxWeight: 5kg
+  Speed: 3 min/km
+end note
+
+note right of CarCourier
+  MaxWeight: 50kg
+  Speed: 1.5 min/km
+end note
+
+@enduml

@@ -1,72 +1,50 @@
 using DeliverySystem.Domain.Entities;
 using DeliverySystem.Interfaces;
+using DeliverySystem.Interfaces.Notifications;
 
 namespace DeliverySystem.Infrastructure.Notifications;
 
 public class ConsoleNotificationService : INotificationService
 {
+    private readonly INotificationSender _sender;
+    private readonly INotificationFormatter _formatter;
+
+    public ConsoleNotificationService(INotificationFactory notificationFactory)
+    {
+        if (notificationFactory == null)
+            throw new ArgumentNullException(nameof(notificationFactory));
+
+        _sender = notificationFactory.CreateSender();
+        _formatter = notificationFactory.CreateFormatter();
+    }
+
     public void NotifyOrderCreated(Order order, Customer customer)
     {
-        Console.WriteLine();
-        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║                    ORDER CREATED                             ║");
-        Console.WriteLine("╠══════════════════════════════════════════════════════════════╣");
-        Console.WriteLine($"║ To: {customer.Name} ({customer.Email})");
-        Console.WriteLine($"║ Order ID: {order.Id}");
-        Console.WriteLine($"║ Items: {order.Items.Count}");
-        Console.WriteLine($"║ Total: {order.GetTotalPrice():C}");
-        Console.WriteLine($"║ Total Weight: {order.GetTotalWeight()}kg");
-        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        var body = _formatter.FormatOrderCreated(order, customer);
+        _sender.Send(customer.Email, "Order Created", body);
     }
 
     public void NotifyOrderStatusChanged(Order order, Customer customer)
     {
-        Console.WriteLine();
-        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║                  ORDER STATUS UPDATE                         ║");
-        Console.WriteLine("╠══════════════════════════════════════════════════════════════╣");
-        Console.WriteLine($"║ To: {customer.Name} ({customer.Email})");
-        Console.WriteLine($"║ Order ID: {order.Id}");
-        Console.WriteLine($"║ New Status: {order.Status}");
-        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        var body = _formatter.FormatOrderStatusChanged(order, customer);
+        _sender.Send(customer.Email, "Order Status Update", body);
     }
 
     public void NotifyDeliveryAssigned(Delivery delivery, Customer customer, Courier courier)
     {
-        Console.WriteLine();
-        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║                   DELIVERY ASSIGNED                          ║");
-        Console.WriteLine("╠══════════════════════════════════════════════════════════════╣");
-        Console.WriteLine($"║ To: {customer.Name} ({customer.Email})");
-        Console.WriteLine($"║ Delivery ID: {delivery.Id}");
-        Console.WriteLine($"║ Courier: {courier.Name} ({courier.VehicleType})");
-        Console.WriteLine($"║ Distance: {delivery.DistanceKm}km");
-        Console.WriteLine($"║ Estimated Time: {delivery.EstimatedDeliveryTime}");
-        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        var body = _formatter.FormatDeliveryAssigned(delivery, customer, courier);
+        _sender.Send(customer.Email, "Delivery Assigned", body);
     }
 
     public void NotifyDeliveryStatusChanged(Delivery delivery, Customer customer)
     {
-        Console.WriteLine();
-        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║                DELIVERY STATUS UPDATE                        ║");
-        Console.WriteLine("╠══════════════════════════════════════════════════════════════╣");
-        Console.WriteLine($"║ To: {customer.Name} ({customer.Email})");
-        Console.WriteLine($"║ Delivery ID: {delivery.Id}");
-        Console.WriteLine($"║ New Status: {delivery.Status}");
-        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        var body = _formatter.FormatDeliveryStatusChanged(delivery, customer);
+        _sender.Send(customer.Email, "Delivery Status Update", body);
     }
 
     public void NotifyDeliveryCompleted(Delivery delivery, Customer customer)
     {
-        Console.WriteLine();
-        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║                  DELIVERY COMPLETED                          ║");
-        Console.WriteLine("╠══════════════════════════════════════════════════════════════╣");
-        Console.WriteLine($"║ To: {customer.Name} ({customer.Email})");
-        Console.WriteLine($"║ Delivery ID: {delivery.Id}");
-        Console.WriteLine($"║ Delivered At: {delivery.DeliveredAt}");
-        Console.WriteLine("║ Thank you for using our delivery service!");
-        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        var body = _formatter.FormatDeliveryCompleted(delivery, customer);
+        _sender.Send(customer.Email, "Delivery Completed", body);
     }
 }

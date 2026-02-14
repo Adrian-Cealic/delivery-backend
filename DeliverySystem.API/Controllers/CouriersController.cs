@@ -1,5 +1,7 @@
 using DeliverySystem.API.DTOs;
 using DeliverySystem.Domain.Entities;
+using DeliverySystem.Domain.Enums;
+using DeliverySystem.Domain.Factories;
 using DeliverySystem.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -47,10 +49,30 @@ public class CouriersController : ControllerBase
         return Ok(couriers.Select(MapToResponse));
     }
 
+    [HttpPost]
+    public ActionResult<CourierResponse> CreateCourier([FromBody] CreateCourierRequest request)
+    {
+        if (!Enum.TryParse<VehicleType>(request.VehicleType, true, out var vehicleType))
+            return BadRequest(new { message = $"Invalid vehicle type: {request.VehicleType}. Supported: Bicycle, Car, Drone" });
+
+        var factory = CourierFactoryProvider.GetFactory(vehicleType);
+        var parameters = new CourierCreationParams(
+            request.Name,
+            request.Phone,
+            request.LicensePlate,
+            request.MaxFlightRangeKm);
+
+        var courier = factory.CreateAndValidate(parameters);
+        _courierRepository.Add(courier);
+
+        return CreatedAtAction(nameof(GetById), new { id = courier.Id }, MapToResponse(courier));
+    }
+
     [HttpPost("bike")]
     public ActionResult<CourierResponse> CreateBikeCourier([FromBody] CreateBikeCourierRequest request)
     {
-        var courier = new BikeCourier(request.Name, request.Phone);
+        var factory = CourierFactoryProvider.GetFactory(VehicleType.Bicycle);
+        var courier = factory.CreateAndValidate(new CourierCreationParams(request.Name, request.Phone));
         _courierRepository.Add(courier);
         return CreatedAtAction(nameof(GetById), new { id = courier.Id }, MapToResponse(courier));
     }
@@ -58,7 +80,19 @@ public class CouriersController : ControllerBase
     [HttpPost("car")]
     public ActionResult<CourierResponse> CreateCarCourier([FromBody] CreateCarCourierRequest request)
     {
-        var courier = new CarCourier(request.Name, request.Phone, request.LicensePlate);
+        var factory = CourierFactoryProvider.GetFactory(VehicleType.Car);
+        var courier = factory.CreateAndValidate(
+            new CourierCreationParams(request.Name, request.Phone, request.LicensePlate));
+        _courierRepository.Add(courier);
+        return CreatedAtAction(nameof(GetById), new { id = courier.Id }, MapToResponse(courier));
+    }
+
+    [HttpPost("drone")]
+    public ActionResult<CourierResponse> CreateDroneCourier([FromBody] CreateDroneCourierRequest request)
+    {
+        var factory = CourierFactoryProvider.GetFactory(VehicleType.Drone);
+        var courier = factory.CreateAndValidate(
+            new CourierCreationParams(request.Name, request.Phone, maxFlightRangeKm: request.MaxFlightRangeKm));
         _courierRepository.Add(courier);
         return CreatedAtAction(nameof(GetById), new { id = courier.Id }, MapToResponse(courier));
     }
@@ -77,8 +111,13 @@ public class CouriersController : ControllerBase
     private static CourierResponse MapToResponse(Courier courier)
     {
         string? licensePlate = null;
+        decimal? maxFlightRange = null;
+
         if (courier is CarCourier carCourier)
             licensePlate = carCourier.LicensePlate;
+
+        if (courier is DroneCourier droneCourier)
+            maxFlightRange = droneCourier.MaxFlightRangeKm;
 
         return new CourierResponse(
             courier.Id,
@@ -87,6 +126,7 @@ public class CouriersController : ControllerBase
             courier.IsAvailable,
             courier.VehicleType.ToString(),
             courier.MaxWeight,
-            licensePlate);
+            licensePlate,
+            maxFlightRange);
     }
 }

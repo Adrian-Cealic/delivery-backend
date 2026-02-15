@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeliverySystem.Console", "D
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeliverySystem.API", "DeliverySystem.API\DeliverySystem.API.csproj", "{6EE41A86-1E2F-43F0-A803-3CEBAD84B6EA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeliverySystem.Tests", "DeliverySystem.Tests\DeliverySystem.Tests.csproj", "{A7A2AB22-C810-4F44-9545-240C8C94C08D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,5 +47,9 @@ Global
 		{6EE41A86-1E2F-43F0-A803-3CEBAD84B6EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6EE41A86-1E2F-43F0-A803-3CEBAD84B6EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6EE41A86-1E2F-43F0-A803-3CEBAD84B6EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7A2AB22-C810-4F44-9545-240C8C94C08D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7A2AB22-C810-4F44-9545-240C8C94C08D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7A2AB22-C810-4F44-9545-240C8C94C08D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7A2AB22-C810-4F44-9545-240C8C94C08D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

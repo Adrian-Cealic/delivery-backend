@@ -1,14 +1,17 @@
 using DeliverySystem.Domain.Enums;
+using DeliverySystem.Domain.Prototypes;
 
 namespace DeliverySystem.Domain.Entities;
 
-public class Order : EntityBase
+public class Order : EntityBase, IPrototype<Order>
 {
     private readonly List<OrderItem> _items;
 
     public Guid CustomerId { get; private set; }
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
     public OrderStatus Status { get; private set; }
+    public OrderPriority Priority { get; private set; }
+    public string? DeliveryNotes { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
 
@@ -20,6 +23,7 @@ public class Order : EntityBase
         CustomerId = customerId;
         _items = new List<OrderItem>();
         Status = OrderStatus.Created;
+        Priority = OrderPriority.Normal;
         CreatedAt = DateTime.UtcNow;
     }
 
@@ -31,6 +35,7 @@ public class Order : EntityBase
         CustomerId = customerId;
         _items = new List<OrderItem>();
         Status = OrderStatus.Created;
+        Priority = OrderPriority.Normal;
         CreatedAt = DateTime.UtcNow;
     }
 
@@ -55,6 +60,21 @@ public class Order : EntityBase
             throw new InvalidOperationException("Cannot remove items from an order that is not in Created status.");
 
         _items.Remove(item);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetPriority(OrderPriority priority)
+    {
+        if (Status != OrderStatus.Created)
+            throw new InvalidOperationException("Cannot change priority after order has been confirmed.");
+
+        Priority = priority;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetDeliveryNotes(string? notes)
+    {
+        DeliveryNotes = notes;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -94,8 +114,32 @@ public class Order : EntityBase
         return _items.Sum(item => item.GetTotalWeight());
     }
 
+    public Order Clone()
+    {
+        var clone = new Order(CustomerId);
+        clone.Priority = Priority;
+        clone.DeliveryNotes = DeliveryNotes;
+
+        foreach (var item in _items)
+            clone.AddItem(item);
+
+        return clone;
+    }
+
+    public Order DeepCopy()
+    {
+        var clone = new Order(CustomerId);
+        clone.Priority = Priority;
+        clone.DeliveryNotes = DeliveryNotes;
+
+        foreach (var item in _items)
+            clone.AddItem(new OrderItem(item.ProductName, item.Quantity, item.UnitPrice, item.Weight));
+
+        return clone;
+    }
+
     public override string ToString()
     {
-        return $"Order {Id}: {_items.Count} items, Total: {GetTotalPrice():C}, Status: {Status}";
+        return $"Order {Id}: {_items.Count} items, Total: {GetTotalPrice():C}, Priority: {Priority}, Status: {Status}";
     }
 }

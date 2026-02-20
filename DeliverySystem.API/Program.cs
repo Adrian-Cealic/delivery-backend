@@ -1,3 +1,4 @@
+using DeliverySystem.Infrastructure.Configuration;
 using DeliverySystem.Infrastructure.Notifications;
 using DeliverySystem.Infrastructure.Notifications.Factories;
 using DeliverySystem.Infrastructure.Repositories;
@@ -15,7 +16,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Delivery Management System API",
         Version = "v1",
-        Description = "REST API for the Delivery Management System - Laborator 2"
+        Description = "REST API for the Delivery Management System - Laborator 3"
     });
 });
 
@@ -36,6 +37,8 @@ builder.Services.AddSingleton<IDeliveryRepository, InMemoryDeliveryRepository>()
 
 builder.Services.AddSingleton<INotificationFactory, ConsoleNotificationFactory>();
 builder.Services.AddSingleton<INotificationService, ConsoleNotificationService>();
+
+builder.Services.AddSingleton(DeliverySystemConfiguration.Instance);
 
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();

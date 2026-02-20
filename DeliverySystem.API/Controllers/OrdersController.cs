@@ -1,5 +1,7 @@
 using DeliverySystem.API.DTOs;
+using DeliverySystem.Domain.Builders;
 using DeliverySystem.Domain.Entities;
+using DeliverySystem.Domain.Enums;
 using DeliverySystem.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -46,8 +48,41 @@ public class OrdersController : ControllerBase
         var items = request.Items.Select(i =>
             new OrderItem(i.ProductName, i.Quantity, i.UnitPrice, i.Weight)).ToList();
 
-        var order = _orderService.CreateOrder(request.CustomerId, items);
+        var priority = OrderPriority.Normal;
+        if (!string.IsNullOrWhiteSpace(request.Priority))
+        {
+            if (!Enum.TryParse<OrderPriority>(request.Priority, true, out priority))
+                return BadRequest(new { message = $"Invalid priority: {request.Priority}. Supported: Economy, Normal, Express" });
+        }
+
+        var order = _orderService.CreateOrder(request.CustomerId, items, priority, request.DeliveryNotes);
         return CreatedAtAction(nameof(GetById), new { id = order.Id }, MapToResponse(order));
+    }
+
+    [HttpPost("builder")]
+    public ActionResult<OrderResponse> CreateWithBuilder([FromBody] CreateOrderWithBuilderRequest request)
+    {
+        if (!Enum.TryParse<OrderPriority>(request.Priority, true, out var priority))
+            return BadRequest(new { message = $"Invalid priority: {request.Priority}. Supported: Economy, Normal, Express" });
+
+        var builder = new StandardOrderBuilder();
+        builder.SetCustomerId(request.CustomerId)
+            .SetPriority(priority)
+            .SetDeliveryNotes(request.DeliveryNotes);
+
+        foreach (var item in request.Items)
+            builder.AddItem(new OrderItem(item.ProductName, item.Quantity, item.UnitPrice, item.Weight));
+
+        var order = builder.Build();
+        var savedOrder = _orderService.RegisterOrder(order);
+        return CreatedAtAction(nameof(GetById), new { id = savedOrder.Id }, MapToResponse(savedOrder));
+    }
+
+    [HttpPost("{id:guid}/clone")]
+    public ActionResult<OrderResponse> Clone(Guid id)
+    {
+        var clone = _orderService.CloneOrder(id);
+        return CreatedAtAction(nameof(GetById), new { id = clone.Id }, MapToResponse(clone));
     }
 
     [HttpPost("{id:guid}/confirm")]
@@ -88,8 +123,10 @@ public class OrdersController : ControllerBase
             order.Id,
             order.CustomerId,
             order.Status.ToString(),
+            order.Priority.ToString(),
             order.GetTotalPrice(),
             order.GetTotalWeight(),
+            order.DeliveryNotes,
             order.CreatedAt,
             order.UpdatedAt,
             order.Items.Select(i => new OrderItemDto(i.ProductName, i.Quantity, i.UnitPrice, i.Weight)).ToList());

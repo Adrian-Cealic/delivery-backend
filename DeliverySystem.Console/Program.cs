@@ -1,7 +1,9 @@
+using DeliverySystem.Domain.Builders;
 using DeliverySystem.Domain.Entities;
 using DeliverySystem.Domain.Enums;
 using DeliverySystem.Domain.Factories;
 using DeliverySystem.Domain.ValueObjects;
+using DeliverySystem.Infrastructure.Configuration;
 using DeliverySystem.Infrastructure.Notifications;
 using DeliverySystem.Infrastructure.Notifications.Factories;
 using DeliverySystem.Infrastructure.Repositories;
@@ -16,16 +18,18 @@ internal class Program
     static void Main(string[] args)
     {
         System.Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        System.Console.WriteLine("║     DELIVERY MANAGEMENT SYSTEM - LABORATOR 2                ║");
-        System.Console.WriteLine("║     Creational Patterns: Factory Method + Abstract Factory   ║");
+        System.Console.WriteLine("║     DELIVERY MANAGEMENT SYSTEM - LABORATOR 3                ║");
+        System.Console.WriteLine("║     Creational Patterns: Builder, Prototype, Singleton       ║");
         System.Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
         System.Console.WriteLine();
 
         var (orderService, deliveryService, customerRepository, courierRepository) = WireUpDependencies();
 
-        DemoFactoryMethod(courierRepository);
+        DemoSingleton();
 
-        DemoAbstractFactory();
+        DemoBuilder(customerRepository);
+
+        DemoPrototype(customerRepository, orderService);
 
         DemoFullWorkflow(orderService, deliveryService, customerRepository, courierRepository);
 
@@ -48,91 +52,166 @@ internal class Program
         INotificationFactory notificationFactory = new ConsoleNotificationFactory();
         INotificationService notificationService = new ConsoleNotificationService(notificationFactory);
 
+        var config = DeliverySystemConfiguration.Instance;
+
         var orderService = new OrderService(orderRepository, customerRepository, notificationService);
         var deliveryService = new DeliveryService(
-            deliveryRepository, orderRepository, courierRepository, customerRepository, notificationService);
+            deliveryRepository, orderRepository, courierRepository, customerRepository, notificationService, config);
 
-        System.Console.WriteLine("Dependencies wired with Abstract Factory for notifications.");
+        System.Console.WriteLine("Dependencies wired with Singleton configuration.");
         System.Console.WriteLine();
 
         return (orderService, deliveryService, customerRepository, courierRepository);
     }
 
-    static void DemoFactoryMethod(ICourierRepository courierRepository)
+    static void DemoSingleton()
     {
         System.Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        System.Console.WriteLine("║             FACTORY METHOD PATTERN DEMO                      ║");
+        System.Console.WriteLine("║              SINGLETON PATTERN DEMO                          ║");
         System.Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
         System.Console.WriteLine();
 
-        System.Console.WriteLine("Creating couriers via Factory Method pattern:");
-        System.Console.WriteLine("Each factory encapsulates the creation of a specific courier type.");
-        System.Console.WriteLine();
+        var config1 = DeliverySystemConfiguration.Instance;
+        var config2 = DeliverySystemConfiguration.Instance;
 
-        var bikeFactory = CourierFactoryProvider.GetFactory(VehicleType.Bicycle);
-        var bikeParams = new CourierCreationParams("Vasile Biciclist", "+373-69-111111");
-        var bikeCourier = bikeFactory.CreateAndValidate(bikeParams);
-        courierRepository.Add(bikeCourier);
-        System.Console.WriteLine($"  BikeCourierFactory created: {bikeCourier}");
+        System.Console.WriteLine($"  config1 == config2: {ReferenceEquals(config1, config2)}");
+        System.Console.WriteLine($"  Default settings: {config1}");
 
-        var carFactory = CourierFactoryProvider.GetFactory(VehicleType.Car);
-        var carParams = new CourierCreationParams("Mihai Sofer", "+373-69-222222", licensePlate: "ABC-123");
-        var carCourier = carFactory.CreateAndValidate(carParams);
-        courierRepository.Add(carCourier);
-        System.Console.WriteLine($"  CarCourierFactory created:  {carCourier}");
+        config1.SetMaxDeliveryDistance(150.0m);
+        config1.SetDefaultCurrency("EUR");
+        System.Console.WriteLine($"  After update via config1: {config1}");
+        System.Console.WriteLine($"  Read via config2:         {config2}");
+        System.Console.WriteLine($"  Same values? {config2.MaxDeliveryDistanceKm == 150.0m && config2.DefaultCurrency == "EUR"}");
 
-        var droneFactory = CourierFactoryProvider.GetFactory(VehicleType.Drone);
-        var droneParams = new CourierCreationParams("Drona-X1", "+373-69-333333", maxFlightRangeKm: 15.0m);
-        var droneCourier = droneFactory.CreateAndValidate(droneParams);
-        courierRepository.Add(droneCourier);
-        System.Console.WriteLine($"  DroneCourierFactory created: {droneCourier}");
+        config1.SetMaxDeliveryDistance(100.0m);
+        config1.SetDefaultCurrency("MDL");
 
         System.Console.WriteLine();
-        System.Console.WriteLine("Polymorphic behavior via CalculateDeliveryTime (10km):");
-        foreach (var courier in courierRepository.GetAll())
-        {
-            var time = courier.CalculateDeliveryTime(10.0m);
-            System.Console.WriteLine($"  {courier.GetType().Name}: {time.TotalMinutes} minutes");
-        }
+        System.Console.WriteLine("  Thread-safety test (10 concurrent accesses):");
+        var instances = new DeliverySystemConfiguration[10];
+        Parallel.For(0, 10, i => { instances[i] = DeliverySystemConfiguration.Instance; });
+        var allSame = instances.All(inst => ReferenceEquals(inst, instances[0]));
+        System.Console.WriteLine($"  All instances identical: {allSame}");
 
         System.Console.WriteLine();
-        System.Console.WriteLine("Factory Method benefits:");
-        System.Console.WriteLine("  - New courier types added without modifying existing factories (OCP)");
-        System.Console.WriteLine("  - Client code works with abstract CourierFactory, not concrete classes (DIP)");
-        System.Console.WriteLine("  - Validation logic centralized in CreateAndValidate template method");
+        System.Console.WriteLine("Singleton benefits:");
+        System.Console.WriteLine("  - Single configuration instance shared across all services");
+        System.Console.WriteLine("  - Thread-safe via Lazy<T> and lock for updates");
+        System.Console.WriteLine("  - Changes visible instantly to all consumers");
         System.Console.WriteLine();
     }
 
-    static void DemoAbstractFactory()
+    static void DemoBuilder(ICustomerRepository customerRepository)
     {
         System.Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        System.Console.WriteLine("║           ABSTRACT FACTORY PATTERN DEMO                      ║");
+        System.Console.WriteLine("║              BUILDER PATTERN DEMO                            ║");
         System.Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
         System.Console.WriteLine();
 
-        System.Console.WriteLine("Console Notification Factory (PlainText + Console):");
-        INotificationFactory consoleFactory = new ConsoleNotificationFactory();
-        var consoleSender = consoleFactory.CreateSender();
-        var consoleFormatter = consoleFactory.CreateFormatter();
-        System.Console.WriteLine($"  Sender type:    {consoleSender.GetType().Name}");
-        System.Console.WriteLine($"  Formatter type: {consoleFormatter.GetType().Name}");
-        consoleSender.Send("test@example.com", "Test", "Plain text notification body");
+        var address = new Address("Str. Stefan cel Mare 1", "Chisinau", "MD-2001", "Moldova");
+        var customer = new Customer("Ion Popescu", "ion@email.com", "+373-69-123456", address);
+        customerRepository.Add(customer);
+
+        System.Console.WriteLine("1. Fluent Builder (step-by-step):");
+        var builder = new StandardOrderBuilder();
+        var expressOrder = builder
+            .SetCustomerId(customer.Id)
+            .AddItem(new OrderItem("Gaming Laptop", 1, 1299.99m, 3.0m))
+            .AddItem(new OrderItem("Gaming Mouse", 1, 79.99m, 0.2m))
+            .SetPriority(OrderPriority.Express)
+            .SetDeliveryNotes("Fragile electronics - handle with care")
+            .Build();
+
+        System.Console.WriteLine($"  Built express order: {expressOrder}");
+        System.Console.WriteLine($"  Notes: {expressOrder.DeliveryNotes}");
+        System.Console.WriteLine();
+
+        System.Console.WriteLine("2. Director with presets:");
+        var director = new OrderDirector(new StandardOrderBuilder());
+
+        var standardItems = new[]
+        {
+            new OrderItem("Book", 3, 12.99m, 0.5m),
+            new OrderItem("Notebook", 5, 3.50m, 0.2m)
+        };
+
+        var standardOrder = director.BuildStandardOrder(customer.Id, standardItems);
+        System.Console.WriteLine($"  Standard order: {standardOrder}");
+
+        var expressItems = new[]
+        {
+            new OrderItem("Medicine", 1, 25.00m, 0.1m)
+        };
+
+        var expressDirectorOrder = director.BuildExpressOrder(customer.Id, expressItems, "Urgent medical supplies");
+        System.Console.WriteLine($"  Express order:  {expressDirectorOrder}");
+        System.Console.WriteLine($"  Express notes:  {expressDirectorOrder.DeliveryNotes}");
+
+        var economyItems = new[]
+        {
+            new OrderItem("Office Supplies", 10, 5.00m, 0.3m)
+        };
+
+        var economyOrder = director.BuildEconomyOrder(customer.Id, economyItems);
+        System.Console.WriteLine($"  Economy order:  {economyOrder}");
 
         System.Console.WriteLine();
-        System.Console.WriteLine("Email Notification Factory (HTML + Email):");
-        INotificationFactory emailFactory = new EmailNotificationFactory();
-        var emailSender = emailFactory.CreateSender();
-        var emailFormatter = emailFactory.CreateFormatter();
-        System.Console.WriteLine($"  Sender type:    {emailSender.GetType().Name}");
-        System.Console.WriteLine($"  Formatter type: {emailFormatter.GetType().Name}");
-        emailSender.Send("test@example.com", "Test", "<h1>HTML notification body</h1>");
+        System.Console.WriteLine("Builder benefits:");
+        System.Console.WriteLine("  - Complex object construction separated from representation");
+        System.Console.WriteLine("  - Fluent API makes code readable and self-documenting");
+        System.Console.WriteLine("  - Director provides reusable presets (SRP)");
+        System.Console.WriteLine("  - Easy to add new builder types without changing Order (OCP)");
+        System.Console.WriteLine();
+    }
+
+    static void DemoPrototype(ICustomerRepository customerRepository, OrderService orderService)
+    {
+        System.Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
+        System.Console.WriteLine("║              PROTOTYPE PATTERN DEMO                          ║");
+        System.Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        System.Console.WriteLine();
+
+        var customers = customerRepository.GetAll().ToList();
+        var customer = customers.First();
+
+        var items = new[]
+        {
+            new OrderItem("Wireless Earbuds", 2, 45.00m, 0.1m),
+            new OrderItem("USB-C Cable", 3, 8.99m, 0.05m)
+        };
+        var original = orderService.CreateOrder(customer.Id, items, OrderPriority.Express, "Gift wrapping requested");
+
+        System.Console.WriteLine($"  Original: {original}");
+        System.Console.WriteLine($"  Original ID: {original.Id}");
+        System.Console.WriteLine();
+
+        System.Console.WriteLine("1. Shallow Clone (shares item references):");
+        var shallow = original.Clone();
+        System.Console.WriteLine($"  Clone ID: {shallow.Id}");
+        System.Console.WriteLine($"  Same customer? {original.CustomerId == shallow.CustomerId}");
+        System.Console.WriteLine($"  Same priority? {original.Priority == shallow.Priority}");
+        System.Console.WriteLine($"  Same items[0] reference? {ReferenceEquals(original.Items[0], shallow.Items[0])}");
+        System.Console.WriteLine();
+
+        System.Console.WriteLine("2. Deep Copy (new item instances):");
+        var deep = original.DeepCopy();
+        System.Console.WriteLine($"  DeepCopy ID: {deep.Id}");
+        System.Console.WriteLine($"  Same items[0] reference? {ReferenceEquals(original.Items[0], deep.Items[0])}");
+        System.Console.WriteLine($"  Equal item values? {original.Items[0].ProductName == deep.Items[0].ProductName}");
+        System.Console.WriteLine();
+
+        System.Console.WriteLine("3. Independence test:");
+        deep.AddItem(new OrderItem("Extra Charger", 1, 15.0m, 0.1m));
+        System.Console.WriteLine($"  Original items: {original.Items.Count}");
+        System.Console.WriteLine($"  DeepCopy items: {deep.Items.Count}");
+        System.Console.WriteLine($"  Original unaffected: {original.Items.Count == 2}");
 
         System.Console.WriteLine();
-        System.Console.WriteLine("Abstract Factory benefits:");
-        System.Console.WriteLine("  - Families of related objects created together (sender + formatter)");
-        System.Console.WriteLine("  - Switching notification channel = swap one factory");
-        System.Console.WriteLine("  - Guaranteed consistency: Console sender always gets PlainText formatter");
-        System.Console.WriteLine("  - Easy to add SMS factory without touching existing code (OCP)");
+        System.Console.WriteLine("Prototype benefits:");
+        System.Console.WriteLine("  - Fast object creation by cloning instead of constructing");
+        System.Console.WriteLine("  - Re-order scenario: duplicate an order in one call");
+        System.Console.WriteLine("  - Shallow vs deep copy for different isolation needs");
+        System.Console.WriteLine("  - Decouples client from concrete class construction details");
         System.Console.WriteLine();
     }
 
@@ -147,26 +226,29 @@ internal class Program
         System.Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
         System.Console.WriteLine();
 
-        var address = new Address("Str. Stefan cel Mare 1", "Chisinau", "MD-2001", "Moldova");
-        var customer = new Customer("Ion Popescu", "ion@email.com", "+373-69-123456", address);
-        customerRepository.Add(customer);
+        var bikeFactory = CourierFactoryProvider.GetFactory(VehicleType.Bicycle);
+        var bikeCourier = bikeFactory.CreateAndValidate(new CourierCreationParams("Vasile Biciclist", "+373-69-111111"));
+        courierRepository.Add(bikeCourier);
 
-        var items = new List<OrderItem>
+        var customers = customerRepository.GetAll().ToList();
+        var customer = customers.First();
+
+        var director = new OrderDirector(new StandardOrderBuilder());
+        var order = director.BuildExpressOrder(customer.Id, new[]
         {
-            new OrderItem("Wireless Earbuds", 1, 45.00m, 0.1m),
             new OrderItem("Phone Case", 2, 15.00m, 0.05m)
-        };
+        }, "Deliver ASAP");
 
-        var order = orderService.CreateOrder(customer.Id, items);
-        orderService.ConfirmOrder(order.Id);
-        orderService.StartProcessing(order.Id);
-        orderService.MarkReadyForDelivery(order.Id);
+        var savedOrder = orderService.RegisterOrder(order);
+        orderService.ConfirmOrder(savedOrder.Id);
+        orderService.StartProcessing(savedOrder.Id);
+        orderService.MarkReadyForDelivery(savedOrder.Id);
 
-        var selectedCourier = deliveryService.FindAvailableCourier(order.GetTotalWeight());
+        var selectedCourier = deliveryService.FindAvailableCourier(savedOrder.GetTotalWeight());
         if (selectedCourier != null)
         {
-            System.Console.WriteLine($"Selected courier via factory: {selectedCourier}");
-            var delivery = deliveryService.AssignCourierToOrder(order.Id, selectedCourier.Id, 3.5m);
+            System.Console.WriteLine($"Selected courier: {selectedCourier}");
+            var delivery = deliveryService.AssignCourierToOrder(savedOrder.Id, selectedCourier.Id, 3.5m);
             deliveryService.MarkPickedUp(delivery.Id);
             deliveryService.MarkInTransit(delivery.Id);
             deliveryService.MarkDelivered(delivery.Id);

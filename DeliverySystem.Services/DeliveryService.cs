@@ -1,5 +1,6 @@
 using DeliverySystem.Domain.Entities;
 using DeliverySystem.Domain.Enums;
+using DeliverySystem.Infrastructure.Configuration;
 using DeliverySystem.Interfaces;
 
 namespace DeliverySystem.Services;
@@ -11,23 +12,30 @@ public class DeliveryService
     private readonly ICourierRepository _courierRepository;
     private readonly ICustomerRepository _customerRepository;
     private readonly INotificationService _notificationService;
+    private readonly DeliverySystemConfiguration _config;
 
     public DeliveryService(
         IDeliveryRepository deliveryRepository,
         IOrderRepository orderRepository,
         ICourierRepository courierRepository,
         ICustomerRepository customerRepository,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        DeliverySystemConfiguration config)
     {
         _deliveryRepository = deliveryRepository ?? throw new ArgumentNullException(nameof(deliveryRepository));
         _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
         _courierRepository = courierRepository ?? throw new ArgumentNullException(nameof(courierRepository));
         _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
+        _config = config ?? throw new ArgumentNullException(nameof(config));
     }
 
     public Delivery AssignCourierToOrder(Guid orderId, Guid courierId, decimal distanceKm)
     {
+        if (distanceKm > _config.MaxDeliveryDistanceKm)
+            throw new InvalidOperationException(
+                $"Distance {distanceKm}km exceeds max allowed delivery distance of {_config.MaxDeliveryDistanceKm}km.");
+
         var order = _orderRepository.GetById(orderId);
         if (order == null)
             throw new InvalidOperationException($"Order with ID {orderId} not found.");

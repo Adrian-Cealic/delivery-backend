@@ -20,13 +20,18 @@ public class OrderService
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
     }
 
-    public Order CreateOrder(Guid customerId, IEnumerable<OrderItem> items)
+    public Order CreateOrder(Guid customerId, IEnumerable<OrderItem> items,
+        OrderPriority priority = OrderPriority.Normal, string? deliveryNotes = null)
     {
         var customer = _customerRepository.GetById(customerId);
         if (customer == null)
             throw new InvalidOperationException($"Customer with ID {customerId} not found.");
 
         var order = new Order(customerId);
+        order.SetPriority(priority);
+
+        if (deliveryNotes != null)
+            order.SetDeliveryNotes(deliveryNotes);
 
         foreach (var item in items)
         {
@@ -37,6 +42,34 @@ public class OrderService
         _notificationService.NotifyOrderCreated(order, customer);
 
         return order;
+    }
+
+    public Order RegisterOrder(Order order)
+    {
+        if (order == null)
+            throw new ArgumentNullException(nameof(order));
+
+        var customer = _customerRepository.GetById(order.CustomerId);
+        if (customer == null)
+            throw new InvalidOperationException($"Customer with ID {order.CustomerId} not found.");
+
+        _orderRepository.Add(order);
+        _notificationService.NotifyOrderCreated(order, customer);
+
+        return order;
+    }
+
+    public Order CloneOrder(Guid orderId)
+    {
+        var original = GetOrderOrThrow(orderId);
+        var customer = GetCustomerOrThrow(original.CustomerId);
+
+        var clone = original.DeepCopy();
+
+        _orderRepository.Add(clone);
+        _notificationService.NotifyOrderCreated(clone, customer);
+
+        return clone;
     }
 
     public Order? GetOrderById(Guid orderId)

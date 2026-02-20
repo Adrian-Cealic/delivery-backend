@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DeliverySystem.Domain\DeliverySystem.Domain.csproj" />
     <ProjectReference Include="..\DeliverySystem.Interfaces\DeliverySystem.Interfaces.csproj" />
+    <ProjectReference Include="..\DeliverySystem.Infrastructure\DeliverySystem.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

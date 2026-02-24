@@ -1,9 +1,13 @@
 using DeliverySystem.Infrastructure.Configuration;
 using DeliverySystem.Infrastructure.Notifications;
 using DeliverySystem.Infrastructure.Notifications.Factories;
+using DeliverySystem.Infrastructure.Payments;
+using DeliverySystem.Infrastructure.Payments.Adapters;
+using DeliverySystem.Infrastructure.Payments.ExternalApis;
 using DeliverySystem.Infrastructure.Repositories;
 using DeliverySystem.Interfaces;
 using DeliverySystem.Interfaces.Notifications;
+using DeliverySystem.Interfaces.Payments;
 using DeliverySystem.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,8 +44,32 @@ builder.Services.AddSingleton<INotificationService, ConsoleNotificationService>(
 
 builder.Services.AddSingleton(DeliverySystemConfiguration.Instance);
 
+builder.Services.AddSingleton<PayPalApi>();
+builder.Services.AddSingleton<StripeApi>();
+builder.Services.AddSingleton<GooglePayApi>();
+builder.Services.AddSingleton<PayPalPaymentAdapter>(sp =>
+{
+    var api = sp.GetRequiredService<PayPalApi>();
+    return new PayPalPaymentAdapter(api);
+});
+builder.Services.AddSingleton<StripePaymentAdapter>(sp =>
+{
+    var api = sp.GetRequiredService<StripeApi>();
+    return new StripePaymentAdapter(api);
+});
+builder.Services.AddSingleton<GooglePayPaymentAdapter>(sp =>
+{
+    var api = sp.GetRequiredService<GooglePayApi>();
+    return new GooglePayPaymentAdapter(api);
+});
+builder.Services.AddSingleton<IPaymentGatewayProvider, PaymentGatewayProvider>();
+
+builder.Services.AddSingleton<CatalogProvider>();
+
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();
+builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<OrderPlacementFacade>();
 
 var app = builder.Build();
 

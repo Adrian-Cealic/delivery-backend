@@ -2,6 +2,7 @@ using DeliverySystem.API.DTOs;
 using DeliverySystem.Domain.Builders;
 using DeliverySystem.Domain.Entities;
 using DeliverySystem.Domain.Enums;
+using DeliverySystem.Interfaces.Payments;
 using DeliverySystem.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +13,12 @@ namespace DeliverySystem.API.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly OrderService _orderService;
+    private readonly OrderPlacementFacade _orderPlacementFacade;
 
-    public OrdersController(OrderService orderService)
+    public OrdersController(OrderService orderService, OrderPlacementFacade orderPlacementFacade)
     {
         _orderService = orderService;
+        _orderPlacementFacade = orderPlacementFacade ?? throw new ArgumentNullException(nameof(orderPlacementFacade));
     }
 
     [HttpGet]
@@ -76,6 +79,37 @@ public class OrdersController : ControllerBase
         var order = builder.Build();
         var savedOrder = _orderService.RegisterOrder(order);
         return CreatedAtAction(nameof(GetById), new { id = savedOrder.Id }, MapToResponse(savedOrder));
+    }
+
+    [HttpPost("place")]
+    public ActionResult<OrderPlacementResponseDto> Place([FromBody] PlaceOrderRequestDto request)
+    {
+        if (!Enum.TryParse<PaymentGatewayType>(request.PaymentGateway, true, out var gatewayType))
+            return BadRequest(new { message = $"Invalid payment gateway: {request.PaymentGateway}. Supported: PayPal, Stripe, GooglePay" });
+
+        var priority = OrderPriority.Normal;
+        if (!string.IsNullOrWhiteSpace(request.Priority) &&
+            !Enum.TryParse<OrderPriority>(request.Priority, true, out priority))
+            return BadRequest(new { message = $"Invalid priority: {request.Priority}" });
+
+        var items = request.Items
+            .Select(i => new PlaceOrderItem(i.ProductName, i.Quantity, i.UnitPrice, i.Weight))
+            .ToList();
+
+        var facadeRequest = new PlaceOrderRequest(
+            request.CustomerId,
+            items,
+            gatewayType,
+            request.DeliveryNotes,
+            request.Currency,
+            priority);
+
+        var result = _orderPlacementFacade.PlaceOrder(facadeRequest);
+
+        if (!result.Success)
+            return BadRequest(new OrderPlacementResponseDto(result.OrderId, result.DeliveryId, result.Success, result.Message));
+
+        return Ok(new OrderPlacementResponseDto(result.OrderId, result.DeliveryId, result.Success, result.Message));
     }
 
     [HttpPost("{id:guid}/clone")]

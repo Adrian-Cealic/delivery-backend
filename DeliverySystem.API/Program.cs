@@ -1,10 +1,14 @@
+using DeliverySystem.Domain.Flyweight;
+using DeliverySystem.Infrastructure.AccessContext;
 using DeliverySystem.Infrastructure.Configuration;
 using DeliverySystem.Infrastructure.Notifications;
+using DeliverySystem.Infrastructure.Notifications.Decorators;
 using DeliverySystem.Infrastructure.Notifications.Factories;
 using DeliverySystem.Infrastructure.Payments;
 using DeliverySystem.Infrastructure.Payments.Adapters;
 using DeliverySystem.Infrastructure.Payments.ExternalApis;
 using DeliverySystem.Infrastructure.Repositories;
+using DeliverySystem.Infrastructure.Repositories.Proxies;
 using DeliverySystem.Interfaces;
 using DeliverySystem.Interfaces.Notifications;
 using DeliverySystem.Interfaces.Payments;
@@ -20,7 +24,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Delivery Management System API",
         Version = "v1",
-        Description = "REST API for the Delivery Management System - Laborator 3"
+        Description = "REST API for the Delivery Management System"
     });
 });
 
@@ -40,7 +44,13 @@ builder.Services.AddSingleton<ICourierRepository, InMemoryCourierRepository>();
 builder.Services.AddSingleton<IDeliveryRepository, InMemoryDeliveryRepository>();
 
 builder.Services.AddSingleton<INotificationFactory, ConsoleNotificationFactory>();
-builder.Services.AddSingleton<INotificationService, ConsoleNotificationService>();
+builder.Services.AddSingleton<INotificationService>(sp =>
+{
+    var factory = sp.GetRequiredService<INotificationFactory>();
+    INotificationService inner = new ConsoleNotificationService(factory);
+    inner = new SmsNotificationDecorator(inner);
+    return new LoggingNotificationDecorator(inner);
+});
 
 builder.Services.AddSingleton(DeliverySystemConfiguration.Instance);
 
@@ -65,6 +75,16 @@ builder.Services.AddSingleton<GooglePayPaymentAdapter>(sp =>
 builder.Services.AddSingleton<IPaymentGatewayProvider, PaymentGatewayProvider>();
 
 builder.Services.AddSingleton<CatalogProvider>();
+builder.Services.AddSingleton<DeliveryZoneFactory>();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAccessContext, HttpHeaderAccessContext>();
+builder.Services.AddScoped<ProtectionOrderRepositoryProxy>(sp =>
+{
+    var realRepo = sp.GetRequiredService<IOrderRepository>();
+    var accessContext = sp.GetRequiredService<IAccessContext>();
+    return new ProtectionOrderRepositoryProxy(realRepo, accessContext);
+});
 
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();

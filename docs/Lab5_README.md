@@ -3,6 +3,7 @@
 ## Obiectiv
 
 Implementarea a patru paternuri structurale în cadrul Delivery Management System:
+
 - **Flyweight** — partajarea obiectelor pentru optimizarea memoriei (zone de livrare)
 - **Decorator** — extinderea funcționalităților fără modificarea clasei de bază (notificări)
 - **Bridge** — separarea abstractizării de implementare (generare rapoarte)
@@ -83,6 +84,7 @@ public sealed class DeliveryZoneFactory
 ```
 
 **Demonstrație:**
+
 ```csharp
 var factory = new DeliveryZoneFactory();
 var zone1 = factory.GetZone("CTR", "Center", 5.00m, 30m);
@@ -92,6 +94,7 @@ var zone2 = factory.GetZone("CTR", "Center", 5.00m, 30m);
 ```
 
 ### Principii SOLID aplicate
+
 - **SRP**: DeliveryZone conține doar starea intrinsecă; factory-ul gestionează doar cache-ul
 - **OCP**: Noi zone se adaugă fără modificarea codului existent — factory le creează la cerere
 - **DIP**: Constructorul intern al DeliveryZone forțează utilizarea factory-ului
@@ -191,6 +194,7 @@ public sealed class SmsNotificationDecorator : NotificationServiceDecorator
 ```
 
 **Lanț DI (Program.cs):**
+
 ```csharp
 builder.Services.AddSingleton<INotificationService>(sp =>
 {
@@ -203,6 +207,7 @@ builder.Services.AddSingleton<INotificationService>(sp =>
 ```
 
 ### Principii SOLID aplicate
+
 - **OCP**: Funcționalități noi (Push notifications) se adaugă ca decoratori noi, fără a modifica clasele existente
 - **SRP**: Fiecare decorator are o singură responsabilitate (logging, SMS)
 - **LSP**: Orice decorator este substituibil ca INotificationService
@@ -214,7 +219,7 @@ builder.Services.AddSingleton<INotificationService>(sp =>
 
 ### Problemă rezolvată
 
-Sistemul trebuie să genereze rapoarte (Order Summary, Delivery Status) în formate diferite (text consolă, JSON). Fără Bridge, fiecare combinație (OrderSummary+Console, OrderSummary+Json, DeliveryStatus+Console, ...) ar necesita o clasă separată. Bridge-ul separă *ce raportăm* (abstractizare) de *cum renderizăm* (implementare), permițând extensibilitate independentă pe ambele axe.
+Sistemul trebuie să genereze rapoarte (Order Summary, Delivery Status) în formate diferite (text consolă, JSON). Fără Bridge, fiecare combinație rderSummar(OrderSummary+Console, Oy+Json, DeliveryStatus+Console, ...) ar necesita o clasă separată. Bridge-ul separă *ce raportăm* (abstractizare) de *cum renderizăm* (implementare), permițând extensibilitate independentă pe ambele axe.
 
 ### Diagrama UML
 
@@ -292,6 +297,7 @@ public sealed class OrderSummaryReport : DeliveryReport
 ```
 
 **ConsoleReportRenderer** — format text cu tabel:
+
 ```csharp
 public sealed class ConsoleReportRenderer : IReportRenderer
 {
@@ -308,6 +314,7 @@ public sealed class ConsoleReportRenderer : IReportRenderer
 ```
 
 **JsonReportRenderer** — format JSON structurat:
+
 ```csharp
 public sealed class JsonReportRenderer : IReportRenderer
 {
@@ -320,12 +327,14 @@ public sealed class JsonReportRenderer : IReportRenderer
 ```
 
 ### Principii SOLID aplicate
+
 - **OCP**: Noi tipuri de rapoarte (CourierPerformanceReport) sau noi renderere (HtmlReportRenderer) se adaugă independent
 - **SRP**: Raportul colectează date; renderer-ul formatează output-ul
 - **DIP**: DeliveryReport depinde de abstracția IReportRenderer, nu de implementări concrete
 - **ISP**: IReportRenderer are o singură metodă, minimă și coezivă
 
 ### API Endpoints
+
 - `GET /api/reports/orders?format=console|json` — raport sumar comenzi
 - `GET /api/reports/deliveries?format=console|json` — raport status livrări
 
@@ -335,7 +344,7 @@ public sealed class JsonReportRenderer : IReportRenderer
 
 ### Problemă rezolvată
 
-Accesul la repository-ul de comenzi trebuie restricționat pe bază de roluri: doar Admin poate adăuga/modifica/șterge comenzi, iar citirea necesită cel puțin rol de Courier. ProtectionOrderRepositoryProxy implementează aceeași interfață IOrderRepository și verifică rolul curent înaintea fiecărei operații, respingând accesul neautorizat.
+Accesul la repository-ul de comenzi trebuie restricționat pe bază de roluri: doar Admin poate adăuga/modifica/șterge comenzi, iar citirea . ProtectionOrderRnecesită cel puțin rol de CourierepositoryProxy implementează aceeași interfață IOrderRepository și verifică rolul curent înaintea fiecărei operații, respingând accesul neautorizat.
 
 ### Diagrama UML
 
@@ -432,12 +441,14 @@ public sealed class HttpHeaderAccessContext : IAccessContext
 ```
 
 ### Principii SOLID aplicate
+
 - **OCP**: Noi tipuri de proxy (Virtual Proxy, Caching Proxy) se adaugă fără a modifica InMemoryOrderRepository
 - **LSP**: Proxy-ul este interschimbabil cu orice IOrderRepository
 - **DIP**: Proxy-ul depinde de abstracțiile IOrderRepository și IAccessContext
 - **SRP**: Proxy-ul gestionează doar controlul accesului; repository-ul real gestionează doar persistența
 
 ### API Endpoints
+
 - `GET /api/orders/protected` — listare comenzi cu verificare rol (header `X-User-Role: Admin|Courier`)
 - `GET /api/orders/protected/{id}` — obținere comandă specifică cu verificare rol
 
@@ -446,6 +457,7 @@ public sealed class HttpHeaderAccessContext : IAccessContext
 ## Teste Unitare
 
 ### FlyweightTests (5 teste)
+
 - `GetZone_SameCode_ReturnsSameInstance` — aceeași instanță pentru același cod
 - `GetZone_DifferentCodes_ReturnsDifferentInstances` — instanțe diferite pentru coduri diferite
 - `CachedCount_ReflectsUniqueZones` — contorul reflectă zonele unice din cache
@@ -453,6 +465,7 @@ public sealed class HttpHeaderAccessContext : IAccessContext
 - `GetZone_CaseInsensitiveLookup_ReturnsSameInstance` — lookup case-insensitive
 
 ### DecoratorTests (6 teste)
+
 - `LoggingDecorator_LogsBeforeDelegating` — log-ul se emite înainte de delegare
 - `SmsDecorator_SendsSmsBeforeDelegating` — SMS-ul se trimite înainte de delegare
 - `ChainedDecorators_AllFireInOrder` — LOG → SMS → Inner, ordinea corectă
@@ -461,6 +474,7 @@ public sealed class HttpHeaderAccessContext : IAccessContext
 - `SmsDecorator_AllMethodsDelegate` — toate cele 5 metode delegă corect
 
 ### BridgeTests (6 teste)
+
 - `OrderSummaryReport_ConsoleRenderer_ProducesTextOutput` — text cu titlu și date
 - `OrderSummaryReport_JsonRenderer_ProducesValidJson` — JSON valid cu structură corectă
 - `DeliveryStatusReport_ConsoleRenderer_ProducesTextOutput` — text cu statistici livrări
@@ -469,6 +483,7 @@ public sealed class HttpHeaderAccessContext : IAccessContext
 - `CapturingRenderer_ReceivesCorrectData` — renderer-ul primește titlu și date corecte
 
 ### ProxyTests (6 teste)
+
 - `Admin_CanAdd_Order` — Admin poate adăuga comenzi
 - `Courier_CannotAdd_ThrowsUnauthorized` — Courier nu poate adăuga (UnauthorizedAccessException)
 - `Courier_CanRead_Orders` — Courier poate citi comenzi
@@ -533,3 +548,4 @@ DeliverySystem.Tests/
         ├── RecordingNotificationService.cs
         └── CapturingReportRenderer.cs
 ```
+

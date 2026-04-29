@@ -1,6 +1,6 @@
 namespace DeliverySystem.Domain.Chain;
 
-public sealed class OrderValidationContext
+public sealed record OrderValidationContext
 {
     public Guid CustomerId { get; init; }
     public IReadOnlyList<OrderValidationLine> Lines { get; init; } = Array.Empty<OrderValidationLine>();

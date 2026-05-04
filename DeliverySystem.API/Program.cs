@@ -1,5 +1,7 @@
 using DeliverySystem.Domain.Flyweight;
 using DeliverySystem.Domain.Memento;
+using DeliverySystem.Domain.Mediator;
+using DeliverySystem.Domain.States;
 using DeliverySystem.Infrastructure.AccessContext;
 using DeliverySystem.Infrastructure.Configuration;
 using DeliverySystem.Infrastructure.Notifications;
@@ -16,6 +18,7 @@ using DeliverySystem.Interfaces.Notifications;
 using DeliverySystem.Interfaces.Payments;
 using DeliverySystem.Services;
 using DeliverySystem.Services.Commands;
+using DeliverySystem.Services.Mediator;
 using DeliverySystem.Services.Memento;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -102,12 +105,22 @@ builder.Services.AddSingleton<DeliveryCommandInvoker>();
 builder.Services.AddSingleton<OrderDraft>();
 builder.Services.AddSingleton<OrderDraftCaretaker>();
 
+// Lab 7 — Behavioral II patterns
+builder.Services.AddSingleton<DeliveryStateContext>();
+builder.Services.AddSingleton<DispatchMediator>();
+builder.Services.AddSingleton<NotifierDispatchParticipant>();
+
 var app = builder.Build();
 
 // Attach the dashboard observer at startup so the events feed begins recording.
 var subject = app.Services.GetRequiredService<DeliveryStatusSubject>();
 var dashboard = app.Services.GetRequiredService<DashboardDeliveryObserver>();
 subject.Attach(dashboard);
+
+// Register the notifier with the dispatch mediator so customer-facing messages start flowing.
+var dispatchMediator = app.Services.GetRequiredService<DispatchMediator>();
+var dispatchNotifier = app.Services.GetRequiredService<NotifierDispatchParticipant>();
+dispatchMediator.Register(dispatchNotifier);
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>

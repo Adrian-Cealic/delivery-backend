@@ -1,9 +1,11 @@
 using DeliverySystem.Domain.Flyweight;
+using DeliverySystem.Domain.Memento;
 using DeliverySystem.Infrastructure.AccessContext;
 using DeliverySystem.Infrastructure.Configuration;
 using DeliverySystem.Infrastructure.Notifications;
 using DeliverySystem.Infrastructure.Notifications.Decorators;
 using DeliverySystem.Infrastructure.Notifications.Factories;
+using DeliverySystem.Infrastructure.Observer;
 using DeliverySystem.Infrastructure.Payments;
 using DeliverySystem.Infrastructure.Payments.Adapters;
 using DeliverySystem.Infrastructure.Payments.ExternalApis;
@@ -13,6 +15,8 @@ using DeliverySystem.Interfaces;
 using DeliverySystem.Interfaces.Notifications;
 using DeliverySystem.Interfaces.Payments;
 using DeliverySystem.Services;
+using DeliverySystem.Services.Commands;
+using DeliverySystem.Services.Memento;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -91,7 +95,19 @@ builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<OrderPlacementFacade>();
 
+// Lab 6 — Behavioral patterns
+builder.Services.AddSingleton<DeliveryStatusSubject>();
+builder.Services.AddSingleton<DashboardDeliveryObserver>();
+builder.Services.AddSingleton<DeliveryCommandInvoker>();
+builder.Services.AddSingleton<OrderDraft>();
+builder.Services.AddSingleton<OrderDraftCaretaker>();
+
 var app = builder.Build();
+
+// Attach the dashboard observer at startup so the events feed begins recording.
+var subject = app.Services.GetRequiredService<DeliveryStatusSubject>();
+var dashboard = app.Services.GetRequiredService<DashboardDeliveryObserver>();
+subject.Attach(dashboard);
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>

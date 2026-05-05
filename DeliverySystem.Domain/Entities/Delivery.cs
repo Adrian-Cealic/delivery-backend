@@ -96,6 +96,23 @@ public class Delivery : EntityBase
         Status = DeliveryStatus.Failed;
     }
 
+    /// <summary>
+    /// Restores the delivery to a previous status. Used by Command undo flows.
+    /// </summary>
+    public void RewindStatus(DeliveryStatus previousStatus, DateTime? pickedUpAt = null, DateTime? deliveredAt = null)
+    {
+        Status = previousStatus;
+        if (previousStatus < DeliveryStatus.PickedUp)
+            PickedUpAt = null;
+        else if (pickedUpAt.HasValue)
+            PickedUpAt = pickedUpAt;
+
+        if (previousStatus < DeliveryStatus.Delivered)
+            DeliveredAt = null;
+        else if (deliveredAt.HasValue)
+            DeliveredAt = deliveredAt;
+    }
+
     public override string ToString()
     {
         return $"Delivery {Id}: Order {OrderId}, Courier {CourierId}, Status: {Status}";
